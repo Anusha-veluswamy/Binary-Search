@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binary Search Explorer</title>
+<style>
+  :root {
+    --maroon: #6B1A31;
+    --orange: #FD6B0D;
+    --bg: #f6f4f1;
+    --panel: #ffffff;
+    --ink: #1f1a1c;
+    --muted: #6b6466;
+    --line: #e4dfdb;
+    --low: #2c6fb5;
+    --high: #8e44ad;
+    --mid: #FD6B0D;
+    --match: #1f9d55;
+    --code-bg: #1e1b22;
+    --code-ink: #e8e3ea;
+    --hl: rgba(253,107,13,0.28);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.45;
+  }
+  header {
+    background: var(--maroon); color: #fff; padding: 18px 24px;
+    border-bottom: 5px solid var(--orange);
+  }
+  header h1 { margin: 0; font-size: 1.5rem; letter-spacing: .3px; }
+  header p { margin: 4px 0 0; opacity: .85; font-size: .95rem; }
+  main { max-width: 1250px; margin: 0 auto; padding: 18px 16px 40px; }
+  .grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .card h2 {
+    margin: 0 0 12px; font-size: 1rem; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--maroon);
+  }
+  .span2 { grid-column: 1 / -1; }
+
+  /* ---------- Setup ---------- */
+  .setup { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .setup { grid-template-columns: 1fr; } }
+  label { font-weight: 600; font-size: .9rem; display: block; margin-bottom: 4px; }
+  input[type=text], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #cfc8c4; border-radius: 8px;
+    font-size: .95rem; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  textarea { height: 150px; resize: vertical; font-family: Consolas, monospace; font-size: .88rem; }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    border: 1px solid var(--maroon); color: var(--maroon); background: #fff;
+    padding: 5px 10px; border-radius: 999px; font-size: .82rem; cursor: pointer;
+  }
+  .chip:hover { background: var(--maroon); color: #fff; }
+  .chip.warn { border-color: #c0392b; color: #c0392b; }
+  .chip.warn:hover { background: #c0392b; color: #fff; }
+
+  button.btn {
+    border: none; border-radius: 8px; padding: 9px 14px; font-size: .95rem; font-weight: 600;
+    cursor: pointer; background: var(--maroon); color: #fff; transition: transform .05s, opacity .2s;
+  }
+  button.btn:active { transform: translateY(1px); }
+  button.btn.alt { background: #fff; color: var(--maroon); border: 1.5px solid var(--maroon); }
+  button.btn.orange { background: var(--orange); }
+  button.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .sort-warn {
+    display: none; margin-top: 12px; padding: 10px 14px; border-radius: 8px;
+    background: #fdecea; color: #8a1f15; border: 1px solid #f2b8b2; font-size: .92rem;
+  }
+  .sort-warn.show { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sort-warn button { margin-left: auto; }
+
+  /* ---------- Controls ---------- */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .speed { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: .85rem; color: var(--muted); }
+  .progress { height: 6px; background: var(--line); border-radius: 3px; margin-top: 12px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: var(--orange); transition: width .2s; }
+  .kbd { font-size: .78rem; color: var(--muted); margin-top: 8px; }
+  kbd { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 0 5px; font-size: .75rem; }
+
+  /* ---------- Shelf ---------- */
+  .shelf-wrap { overflow-x: auto; padding: 4px 2px 0; }
+  .shelf {
+    display: flex; gap: 10px; align-items: flex-end;
+    padding: 8px 12px 0; border-bottom: 14px solid #7a5232; border-radius: 0 0 4px 4px;
+    background: linear-gradient(#fbf8f4, #f1e9df); width: max-content; min-width: 100%;
+  }
+  .book { display: flex; flex-direction: column; align-items: center; position: relative; width: 58px; }
+  .tags { height: 70px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; padding-bottom: 6px; }
+  .tag {
+    font-family: Consolas, monospace; font-size: .74rem; font-weight: 700; color: #fff;
+    padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+  }
+  .tag.low { background: var(--low); }
+  .tag.mid { background: var(--mid); }
+  .tag.high { background: var(--high); }
+  .badge { position: absolute; top: 2px; font-size: 1.15rem; font-weight: 700; }
+  .spine {
+    width: 58px; height: 180px; border-radius: 5px 5px 2px 2px; display: flex; align-items: center;
+    justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg);
+    color: #fff; font-weight: 600; font-size: .85rem; padding: 8px 4px; text-align: center;
+    box-shadow: inset -5px 0 0 rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.15);
+    transition: all .35s ease; overflow: hidden;
+  }
+  .book.out .spine { filter: grayscale(1) opacity(.3); }
+  .book.mid .spine { outline: 4px solid var(--mid); transform: rotate(180deg) translateY(14px); }
+  .book.midno .spine { outline: 4px solid #c0392b; transform: rotate(180deg) translateY(14px); }
+  .book.match .spine { outline: 5px solid var(--match); transform: rotate(180deg) translateY(22px); }
+  .idx {
+    margin-top: 4px; font-family: Consolas, monospace; font-size: .8rem; color: #fff;
+    background: #7a5232; padding: 0 6px; border-radius: 4px; position: absolute; bottom: -18px;
+  }
+  .range-bar { height: 8px; margin-top: 22px; display: flex; gap: 10px; padding: 0 12px; width: max-content; min-width: 100%; }
+  .range-bar span { width: 58px; height: 8px; border-radius: 4px; background: transparent; transition: background .3s; }
+  .range-bar span.on { background: rgba(253,107,13,.55); }
+  .range-label { font-size: .8rem; color: var(--muted); margin: 4px 12px 0; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 10px; }
+  .legend span::before {
+    content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px;
+  }
+  .lg-in::before { background: rgba(253,107,13,.55); }
+  .lg-mid::before { background: #fff; outline: 3px solid var(--mid); }
+  .lg-out::before { background: #cfc9c7; }
+  .lg-yes::before { background: #fff; outline: 3px solid var(--match); }
+  .lg-low::before { background: var(--low); }
+  .lg-high::before { background: var(--high); }
+
+  /* ---------- Explanation ---------- */
+  .explain {
+    background: #fff6ef; border-left: 5px solid var(--orange); padding: 12px 14px;
+    border-radius: 6px; font-size: 1rem; min-height: 64px; margin-top: 14px;
+  }
+  .explain b { color: var(--maroon); }
+  .done-banner { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-weight: 600; display: none; }
+  .done-banner.found { display: block; background: #e7f6ee; color: #146c3b; border: 1px solid #a8dcbf; }
+  .done-banner.notfound { display: block; background: #fdecea; color: #922; border: 1px solid #f2b8b2; }
+
+  /* ---------- Code ---------- */
+  .code {
+    background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 10px 0;
+    font-family: Consolas, "Courier New", monospace; font-size: .86rem; overflow-x: auto;
+  }
+  .ln { display: flex; padding: 1px 12px 1px 0; white-space: pre; border-left: 4px solid transparent; transition: background .2s; }
+  .ln .no { width: 36px; text-align: right; padding-right: 12px; color: #6f6878; user-select: none; flex-shrink: 0; }
+  .ln.active { background: var(--hl); border-left-color: var(--orange); }
+  .kw { color: #ff9ac1; } .str { color: #a5e3a0; } .cm { color: #8b8394; font-style: italic; } .fn { color: #8fd3ff; } .num { color: #ffc66d; }
+
+  /* ---------- Variables / console ---------- */
+  .vars { width: 100%; border-collapse: collapse; font-family: Consolas, monospace; font-size: .9rem; }
+  .vars td { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .vars td:first-child { color: var(--maroon); font-weight: 700; width: 38%; }
+  .vars tr.changed td:last-child { background: #fff1e6; transition: background .3s; }
+  .console {
+    background: #111; color: #d7f7d0; font-family: Consolas, monospace; font-size: .86rem;
+    border-radius: 8px; padding: 10px 12px; min-height: 110px; max-height: 200px; overflow-y: auto; white-space: pre-wrap;
+  }
+  .console .prompt { color: #888; }
+  .stats { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 100px; background: #faf7f5; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .stat .v { font-size: 1.45rem; font-weight: 700; color: var(--maroon); }
+  .stat .l { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .history { margin-top: 12px; font-size: .85rem; }
+  .history .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .history .bar { height: 12px; background: var(--orange); border-radius: 3px; transition: width .3s; min-width: 3px; }
+  .history .lbl { width: 95px; color: var(--muted); font-family: Consolas, monospace; font-size: .8rem; flex-shrink: 0; }
+
+  /* ---------- Think ---------- */
+  .think { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .q { background: #faf7f5; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font-size: .92rem; }
+  .q b { color: var(--maroon); }
+  details summary { cursor: pointer; color: var(--orange); font-weight: 600; margin-top: 6px; font-size: .88rem; }
+  details p { margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 Binary Search Explorer</h1>
+  <p>Watch Python cut a <b>sorted</b> shelf in half again and again until it finds the book you want.</p>
+</header>
+
+<main>
+  <div class="grid">
+
+    <!-- SETUP -->
+    <section class="card span2">
+      <h2>1 · Set up the search</h2>
+      <div class="setup">
+        <div>
+          <label for="booksInput">Books on the shelf (one per line, must be sorted A→Z)</label>
+          <textarea id="booksInput"></textarea>
+          <div class="hint">Add, remove, or reorder books, then click <b>Apply</b>.</div>
+        </div>
+        <div>
+          <label for="targetInput">Target book to find</label>
+          <input type="text" id="targetInput" list="bookList" autocomplete="off">
+          <datalist id="bookList"></datalist>
+          <div class="hint">Python compares strings letter by letter (alphabetical order), and capitals come before lowercase.</div>
+          <div class="presets">
+            <span class="hint" style="width:100%;margin:0">Quick experiments:</span>
+            <button class="chip" data-preset="middle">Middle book (1 check)</button>
+            <button class="chip" data-preset="first">First book</button>
+            <button class="chip" data-preset="last">Last book</button>
+            <button class="chip" data-preset="missing">Not on shelf</button>
+            <button class="chip" data-preset="case">Wrong capitalization</button>
+            <button class="chip" data-preset="big">Bigger shelf (15 books)</button>
+            <button class="chip warn" data-preset="shuffle">Shuffle shelf (breaks it!)</button>
+            <button class="chip" data-preset="reset">Original example</button>
+          </div>
+          <div style="margin-top:14px">
+            <button class="btn orange" id="applyBtn">Apply &amp; restart</button>
+          </div>
+        </div>
+      </div>
+      <div class="sort-warn" id="sortWarn">
+        <span>⚠️ <b>This shelf is not sorted.</b> Binary search assumes sorted order, so it may skip right past the book. Run it and see!</span>
+        <button class="btn" id="sortBtn">Sort the shelf A→Z</button>
+      </div>
+    </section>
+
+    <!-- SHELF + CONTROLS -->
+    <section class="card span2">
+      <h2>2 · Run it</h2>
+      <div class="controls">
+        <button class="btn alt" id="resetBtn" title="Reset (R)">⟲ Reset</button>
+        <button class="btn alt" id="backBtn" title="Step back (←)">◀ Back</button>
+        <button class="btn" id="playBtn" title="Play / Pause (Space)">▶ Play</button>
+        <button class="btn alt" id="stepBtn" title="Step forward (→)">Step ▶</button>
+        <div class="speed">
+          <span>Slow</span>
+          <input type="range" id="speed" min="150" max="1800" step="50" value="1000" style="direction:rtl">
+          <span>Fast</span>
+        </div>
+      </div>
+      <div class="progress"><div id="progressBar"></div></div>
+      <div class="kbd">Keyboard: <kbd>Space</kbd> play/pause · <kbd>→</kbd> step · <kbd>←</kbd> back · <kbd>R</kbd> reset</div>
+
+      <div class="shelf-wrap">
+        <div class="shelf" id="shelf"></div>
+        <div class="range-bar" id="rangeBar"></div>
+        <div class="range-label" id="rangeLabel"></div>
+      </div>
+      <div class="legend">
+        <span class="lg-low">low pointer</span>
+        <span class="lg-high">high pointer</span>
+        <span class="lg-in">Still in search range</span>
+        <span class="lg-mid">Middle book being checked</span>
+        <span class="lg-out">Eliminated (can't be here)</span>
+        <span class="lg-yes">Match found ✓</span>
+      </div>
+      <div class="explain" id="explain"></div>
+      <div class="done-banner" id="doneBanner"></div>
+    </section>
+
+    <!-- CODE -->
+    <section class="card">
+      <h2>3 · The code (current line highlighted)</h2>
+      <div class="code" id="code"></div>
+    </section>
+
+    <!-- STATE -->
+    <section class="card">
+      <h2>4 · What Python is tracking</h2>
+      <table class="vars" id="vars"></table>
+      <div class="stats">
+        <div class="stat"><div class="v" id="statProbe">0</div><div class="l">Middle checks</div></div>
+        <div class="stat"><div class="v" id="statLeft">0</div><div class="l">Books left in range</div></div>
+        <div class="stat"><div class="v" id="statMax">0</div><div class="l">Max checks ever needed</div></div>
+        <div class="stat"><div class="v" id="statLinear">0</div><div class="l">Linear search would need</div></div>
+      </div>
+      <div class="history" id="history"></div>
+      <h2 style="margin-top:14px">Output</h2>
+      <div class="console" id="console"></div>
+    </section>
+
+    <!-- THINK -->
+    <section class="card span2">
+      <h2>5 · Think about it</h2>
+      <div class="think">
+        <div class="q"><b>Why sorted?</b> Click "Shuffle shelf" and search for a book that's definitely there. What goes wrong?
+          <details><summary>Show answer</summary><p>Binary search throws away half the shelf based on <code>arr[mid] &lt; key</code>. That's only safe if everything left of mid is smaller and everything right is bigger. On an unsorted shelf it can discard the half that holds the book.</p></details></div>
+        <div class="q"><b>How many checks?</b> For 7 books the worst case is 3 checks. What about 15 books? 1,000? 1,000,000?
+          <details><summary>Show answer</summary><p>15 → <b>4</b>, 1,000 → <b>10</b>, 1,000,000 → <b>20</b>. Each check halves the range, so it's about ⌊log₂ n⌋ + 1 checks. That's <b>O(log n)</b>.</p></details></div>
+        <div class="q"><b>Best case.</b> Why does the original example find "Data Structures" in just 1 check?
+          <details><summary>Show answer</summary><p>It sits at index 3, which is exactly <code>(0 + 6) // 2</code>, the first middle. Best case is <b>O(1)</b>.</p></details></div>
+        <div class="q"><b>Why <code>//</code>?</b> What would go wrong with <code>(low + high) / 2</code>?
+          <details><summary>Show answer</summary><p><code>/</code> gives a float like <code>2.5</code>, and list indices must be integers. <code>//</code> rounds down, so with an even-sized range mid picks the <b>left</b> of the two middle books.</p></details></div>
+        <div class="q"><b>When does it stop?</b> If the book isn't there, how does the loop know to give up?
+          <details><summary>Show answer</summary><p>Each miss moves <code>low</code> up or <code>high</code> down. Eventually <code>low &gt; high</code>: the range is empty, the <code>while</code> condition is False, and the function returns <b>-1</b>.</p></details></div>
+        <div class="q"><b>Why <code>mid + 1</code>?</b> Why not just <code>low = mid</code>?
+          <details><summary>Show answer</summary><p><code>arr[mid]</code> was already checked and isn't the key, so it can be excluded. Using <code>low = mid</code> can leave the range stuck at the same size forever (an infinite loop).</p></details></div>
+        <div class="q"><b>Capitals matter.</b> Try "Wrong capitalization". Which direction does the search go, and why?
+          <details><summary>Show answer</summary><p>Lowercase letters sort <b>after</b> all uppercase ones ("d" &gt; "P"), so <code>"data structures"</code> looks bigger than every title. The search keeps moving right and runs off the end.</p></details></div>
+        <div class="q"><b>Linear vs binary.</b> Search for "Python Programming" here and in the Linear Search Explorer. Compare.
+          <details><summary>Show answer</summary><p>Linear checks all <b>7</b>; binary needs only <b>3</b>. The gap grows fast: for 1,000,000 books it's up to 1,000,000 vs 20. The trade-off is that binary search needs the data sorted first.</p></details></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  const DEFAULT_BOOKS = ["Algorithms", "Artificial Intelligence", "Clean Code", "Data Structures",
+                         "Deep Learning", "Machine Learning", "Python Programming"];
+  const BIG_BOOKS = ["Algorithms", "Artificial Intelligence", "Clean Code", "Compilers", "Computer Networks",
+                     "Cryptography", "Data Structures", "Databases", "Deep Learning", "Discrete Math",
+                     "Machine Learning", "Operating Systems", "Python Programming", "Software Engineering", "Theory of Computation"];
+  const DEFAULT_TARGET = "Data Structures";
+  const SPINE_COLORS = ["#6B1A31", "#2c5d8a", "#8a6d9e", "#2f7d6d", "#a0522d", "#4a4e8f",
+                        "#b03a5b", "#3f6e2f", "#7a4b8c", "#c06a1a", "#1f6f8b", "#8b3a3a"];
+
+  let books = DEFAULT_BOOKS.slice();
+  let target = DEFAULT_TARGET;
+  let trace = [];
+  let step = 0;
+  let timer = null;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const py = s => '"' + s + '"';
+  const isSorted = arr => arr.every((b, k) => k === 0 || arr[k - 1] <= b);
+  const maxChecks = n => n <= 0 ? 0 : Math.floor(Math.log2(n)) + 1;
+
+  // ---------- Code listing ----------
+  function codeLines() {
+    return [
+      'books = [...]  # ' + books.length + ' books (see the shelf above)',
+      'target = ' + py(target),
+      '',
+      'def binary_search(arr, key):',
+      '    low = 0',
+      '    high = len(arr) - 1',
+      '    while low <= high:',
+      '        mid = (low + high) // 2',
+      '        print(f"Checking middle: {arr[mid]}")   # show progress',
+      '        if arr[mid] == key:',
+      '            return mid',
+      '        elif arr[mid] < key:',
+      '            low = mid + 1',
+      '        else:',
+      '            high = mid - 1',
+      '    return -1',
+      '',
+      'result = binary_search(books, target)',
+      '',
+      'if result != -1:',
+      '    print(f"\\n\'{target}\' found at the bookshelf number {result}")',
+      'else:',
+      '    print(f"\\n\'{target}\' not found in the bookshelf")'
+    ];
+  }
+
+  function highlight(line) {
+    const parts = line.split(/(f?"(?:[^"\\]|\\.)*"|#.*$)/);
+    return parts.map(p => {
+      if (!p) return "";
+      if (p.startsWith("#")) return '<span class="cm">' + esc(p) + '</span>';
+      if (/^f?"/.test(p)) return '<span class="str">' + esc(p) + '</span>';
+      return esc(p)
+        .replace(/\b(def|while|if|elif|else|return|print|len)\b/g, m =>
+          ["print", "len"].includes(m) ? '<span class="fn">' + m + '</span>' : '<span class="kw">' + m + '</span>')
+        .replace(/(\b\d+\b)/g, '<span class="num">$1</span>');
+    }).join("");
+  }
+
+  function renderCode(active) {
+    $("code").innerHTML = codeLines().map((l, i) =>
+      '<div class="ln' + (i + 1 === active ? ' active' : '') + '"><span class="no">' + (i + 1) +
+      '</span><span>' + (highlight(l) || " ") + '</span></div>').join("");
+    const a = $("code").querySelector(".active");
+    if (a) a.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  // ---------- Build the execution trace ----------
+  function buildTrace() {
+    const n = books.length;
+    const out = [];
+    const ranges = [];               // size of range at each check
+    let low = null, high = null, mid = null, probes = 0, result = undefined;
+    let cond = null, eqTxt = null, ltTxt = null, midState = null;
+    const t = [];
+    const statusArr = () => books.map((_, k) => {
+      if (result !== undefined && result === k && result !== -1) return "match";
+      if (mid === k && midState) return midState;
+      if (low === null) return "in";
+      return (k >= low && k <= high) ? "in" : "out";
+    });
+    const snap = (line, msg, extra = {}) => t.push({
+      line, msg, status: statusArr(), out: out.slice(), probes, low, high, mid, result,
+      cond, eqTxt, ltTxt, ranges: ranges.slice(), done: false, ...extra
+    });
+
+    snap(1, "We start with a <b>sorted</b> shelf of <b>" + n + "</b> books and a target: <b>" + esc(py(target)) + "</b>. Press <b>Step</b> or <b>Play</b>.");
+    snap(18, "Python calls <b>binary_search(books, target)</b>. Inside the function, <code>arr</code> is the shelf and <code>key</code> is " + esc(py(target)) + ".");
+    low = 0;
+    snap(5, "Set <b>low = 0</b>: the left edge of the search range is the first book.");
+    high = n - 1;
+    snap(6, "Set <b>high = len(arr) - 1 = " + (n - 1) + "</b>: the right edge is the last book. All " + n + " books are in range.");
+
+    let found = false;
+    while (true) {
+      cond = low <= high;
+      if (!cond) break;
+      mid = null; midState = null; eqTxt = null; ltTxt = null;
+      snap(7, "Check <code>low &lt;= high</code> → <code>" + low + " &lt;= " + high + "</code> → <b>True</b>. There are still " + (high - low + 1) + " book" + (high - low === 0 ? "" : "s") + " to search.");
+      mid = Math.floor((low + high) / 2);
+      ranges.push(high - low + 1);
+      snap(8, "Find the middle: <code>mid = (" + low + " + " + high + ") // 2 = " + (low + high) + " // 2 = <b>" + mid + "</b></code>.");
+      midState = "mid";
+      out.push("Checking middle: " + books[mid]);
+      probes++;
+      snap(9, "Print the middle book, <b>arr[" + mid + "]</b> = " + esc(py(books[mid])) + ". That's check #" + probes + ".");
+      const eq = books[mid] === target;
+      eqTxt = eq ? "True" : "False";
+      if (eq) {
+        midState = "match";
+        snap(10, "Compare: <code>" + esc(py(books[mid])) + " == " + esc(py(target)) + "</code> → <b>True</b>. Found it!");
+        result = mid; found = true;
+        snap(11, "Return <b>" + mid + "</b>. Done after only <b>" + probes + "</b> check" + (probes === 1 ? "" : "s") + ".");
+        break;
+      }
+      midState = "midno";
+      snap(10, "Compare: <code>" + esc(py(books[mid])) + " == " + esc(py(target)) + "</code> → <b>False</b>. Not this one.");
+      const lt = books[mid] < target;
+      ltTxt = lt ? "True" : "False";
+      if (lt) {
+        snap(12, "Is <code>" + esc(py(books[mid])) + " &lt; " + esc(py(target)) + "</code>? <b>True</b>: the middle book comes <b>before</b> the target alphabetically, so the target must be to the <b>right</b>.");
+        const oldLow = low;
+        low = mid + 1; midState = null;
+        snap(13, "Set <b>low = mid + 1 = " + low + "</b>. Books [" + oldLow + "…" + mid + "] are eliminated in one move.");
+      } else {
+        snap(12, "Is <code>" + esc(py(books[mid])) + " &lt; " + esc(py(target)) + "</code>? <b>False</b>: the middle book comes <b>after</b> the target alphabetically, so the target must be to the <b>left</b>. Go to <code>else</code>.");
+        const oldHigh = high;
+        high = mid - 1; midState = null;
+        snap(15, "Set <b>high = mid - 1 = " + high + "</b>. Books [" + mid + "…" + oldHigh + "] are eliminated in one move.");
+      }
+    }
+    if (!found) {
+      mid = null; midState = null; eqTxt = null; ltTxt = null;
+      snap(7, "Check <code>low &lt;= high</code> → <code>" + low + " &lt;= " + high + "</code> → <b>False</b>. The range is empty, so the loop ends.");
+      result = -1;
+      snap(16, "The book was never found, so the function returns <b>-1</b>.");
+    }
+    snap(18, "Back outside the function: <code>result = " + result + "</code>.");
+    snap(20, "Check <code>result != -1</code> → <b>" + (result !== -1 ? "True" : "False") + "</b>.");
+    out.push("");
+    if (found) {
+      out.push("'" + target + "' found at the bookshelf number " + result);
+      snap(21, "Print the success message. Binary search used <b>" + probes + "</b> check" + (probes === 1 ? "" : "s") + "; linear search would have used <b>" + (result + 1) + "</b>.", { done: "found" });
+    } else {
+      out.push("'" + target + "' not found in the bookshelf");
+      const really = books.includes(target);
+      snap(23, "Print the not-found message after <b>" + probes + "</b> check" + (probes === 1 ? "" : "s") + "." +
+        (really ? " <b>But the book IS on the shelf!</b> The shelf isn't sorted, so binary search threw away the wrong half." : ""), { done: "notfound" });
+    }
+    return t;
+  }
+
+  // ---------- Rendering ----------
+  function renderShelf(s) {
+    $("shelf").innerHTML = books.map((b, k) => {
+      const tags = [];
+      if (s.low === k && s.low !== null && s.low <= s.high) tags.push('<span class="tag low">low</span>');
+      if (s.mid === k && s.mid !== null) tags.push('<span class="tag mid">mid</span>');
+      if (s.high === k && s.high !== null && s.low <= s.high) tags.push('<span class="tag high">high</span>');
+      const st = s.status[k];
+      const badge = st === "match" ? '<span class="badge" style="color:var(--match)">✓</span>'
+                  : st === "midno" ? '<span class="badge" style="color:#c0392b">✗</span>' : "";
+      return '<div class="book ' + st + '" data-k="' + k + '">' +
+        '<div class="tags">' + badge + tags.join("") + '</div>' +
+        '<div class="spine" style="background:' + SPINE_COLORS[k % SPINE_COLORS.length] + '">' + esc(b) + '</div>' +
+        '<div class="idx">[' + k + ']</div></div>';
+    }).join("");
+    const inRange = k => s.low !== null && s.low <= s.high && k >= s.low && k <= s.high;
+    $("rangeBar").innerHTML = books.map((_, k) => '<span class="' + (inRange(k) ? "on" : "") + '"></span>').join("");
+    $("rangeLabel").innerHTML = s.low === null ? "Search range: not set yet"
+      : s.low <= s.high ? "Search range: indices <b>" + s.low + "</b> to <b>" + s.high + "</b> (" + (s.high - s.low + 1) + " book" + (s.high === s.low ? "" : "s") + ")"
+      : "Search range: <b>empty</b> (low &gt; high)";
+    if (s.mid !== null) {
+      const el = $("shelf").querySelector('[data-k="' + s.mid + '"]');
+      if (el) el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+
+  let prevVars = {};
+  function renderVars(s) {
+    const dash = v => (v === null || v === undefined) ? "—" : v;
+    const rows = [
+      ["key", esc(py(target))],
+      ["low", dash(s.low)],
+      ["high", dash(s.high)],
+      ["low <= high", s.low === null ? "—" : (s.low <= s.high ? "True" : "False")],
+      ["mid", dash(s.mid)],
+      ["arr[mid]", s.mid === null ? "—" : esc(py(books[s.mid]))],
+      ["arr[mid] == key", dash(s.eqTxt)],
+      ["arr[mid] < key", dash(s.ltTxt)],
+      ["result", s.result === undefined ? "— (not set yet)" : s.result]
+    ];
+    $("vars").innerHTML = rows.map(([k, v]) =>
+      '<tr class="' + (prevVars[k] !== undefined && prevVars[k] !== String(v) ? "changed" : "") + '"><td>' + esc(k) + '</td><td>' + v + '</td></tr>').join("");
+    prevVars = Object.fromEntries(rows.map(([k, v]) => [k, String(v)]));
+
+    const n = books.length;
+    $("statProbe").textContent = s.probes;
+    $("statLeft").textContent = s.low === null ? n : Math.max(0, s.high - s.low + 1);
+    $("statMax").textContent = maxChecks(n);
+    const li = books.indexOf(target);
+    $("statLinear").textContent = li === -1 ? n : li + 1;
+
+    $("history").innerHTML = s.ranges.length
+      ? '<div class="hint" style="margin-bottom:4px">Range size at each check (watch it halve):</div>' +
+        s.ranges.map((r, k) => '<div class="row"><span class="lbl">check ' + (k + 1) + ': ' + r + '</span><div class="bar" style="width:' + (100 * r / n) + '%"></div></div>').join("")
+      : "";
+
+    $("console").innerHTML = '<span class="prompt">$ python binary_search.py</span>\n' + s.out.map(esc).join("\n");
+    $("console").scrollTop = $("console").scrollHeight;
+  }
+
+  function render() {
+    const s = trace[step];
+    renderShelf(s);
+    renderCode(s.line);
+    renderVars(s);
+    $("explain").innerHTML = "<b>Step " + (step + 1) + " of " + trace.length + ":</b> " + s.msg;
+    $("progressBar").style.width = (100 * step / (trace.length - 1)) + "%";
+    const banner = $("doneBanner");
+    banner.className = "done-banner" + (s.done ? " " + s.done : "");
+    banner.textContent = s.done === "found"
+      ? "✓ Found \"" + target + "\" at index " + s.result + " after " + s.probes + " middle check" + (s.probes === 1 ? "" : "s") + "."
+      : s.done === "notfound"
+        ? (books.includes(target)
+            ? "✗ Reported not found, even though \"" + target + "\" is on the shelf. Binary search needs a sorted list!"
+            : "✗ \"" + target + "\" is not on the shelf. It took " + s.probes + " check" + (s.probes === 1 ? "" : "s") + " to be sure.")
+        : "";
+    $("backBtn").disabled = step === 0;
+    $("stepBtn").disabled = step === trace.length - 1;
+  }
+
+  // ---------- Playback ----------
+  function pause() { clearInterval(timer); timer = null; $("playBtn").textContent = "▶ Play"; }
+  function play() {
+    if (step >= trace.length - 1) { step = 0; render(); }
+    $("playBtn").textContent = "⏸ Pause";
+    timer = setInterval(() => {
+      if (step < trace.length - 1) { step++; render(); } else pause();
+    }, +$("speed").value);
+  }
+  function restart() {
+    pause(); prevVars = {};
+    trace = buildTrace(); step = 0; render();
+  }
+
+  // ---------- Setup inputs ----------
+  function syncInputs() {
+    $("booksInput").value = books.join("\n");
+    $("targetInput").value = target;
+    $("bookList").innerHTML = books.map(b => '<option value="' + esc(b) + '">').join("");
+    $("sortWarn").classList.toggle("show", !isSorted(books));
+  }
+  function readBooks() {
+    const b = $("booksInput").value.split("\n").map(s => s.trim()).filter(Boolean);
+    return b.length ? b : DEFAULT_BOOKS.slice();
+  }
+  function applyInputs() {
+    books = readBooks();
+    target = $("targetInput").value.trim();
+    syncInputs(); restart();
+  }
+
+  $("applyBtn").onclick = applyInputs;
+  $("targetInput").addEventListener("keydown", e => { if (e.key === "Enter") applyInputs(); });
+  $("sortBtn").onclick = () => { books = readBooks().sort(); target = $("targetInput").value.trim(); syncInputs(); restart(); };
+  document.querySelectorAll("[data-preset]").forEach(btn => btn.onclick = () => {
+    books = readBooks();
+    const p = btn.dataset.preset;
+    if (p === "middle") target = books[Math.floor((books.length - 1) / 2)];
+    if (p === "first") target = books[0];
+    if (p === "last") target = books[books.length - 1];
+    if (p === "missing") target = "Computer Networks" === books.find(b => b === "Computer Networks") ? "Cloud Computing" : "Computer Networks";
+    if (p === "case") target = (books.includes(DEFAULT_TARGET) ? DEFAULT_TARGET : books[0]).toLowerCase();
+    if (p === "big") { books = BIG_BOOKS.slice(); target = "Software Engineering"; }
+    if (p === "shuffle") {
+      const before = books.slice();
+      do {
+        for (let k = books.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [books[k], books[j]] = [books[j], books[k]]; }
+      } while (books.length > 2 && books.join() === before.join());
+      target = $("targetInput").value.trim();
+    }
+    if (p === "reset") { books = DEFAULT_BOOKS.slice(); target = DEFAULT_TARGET; }
+    syncInputs(); restart();
+  });
+
+  $("playBtn").onclick = () => timer ? pause() : play();
+  $("stepBtn").onclick = () => { pause(); if (step < trace.length - 1) { step++; render(); } };
+  $("backBtn").onclick = () => { pause(); if (step > 0) { step--; render(); } };
+  $("resetBtn").onclick = () => { pause(); step = 0; prevVars = {}; render(); };
+  $("speed").oninput = () => { if (timer) { pause(); play(); } };
+
+  document.addEventListener("keydown", e => {
+    if (["INPUT", "TEXTAREA"].includes(e.target.tagName)) return;
+    if (e.code === "Space") { e.preventDefault(); $("playBtn").click(); }
+    else if (e.key === "ArrowRight") $("stepBtn").click();
+    else if (e.key === "ArrowLeft") $("backBtn").click();
+    else if (e.key.toLowerCase() === "r") $("resetBtn").click();
+  });
+
+  syncInputs();
+  restart();
+})();
+</script>
+</body>
+</html>
